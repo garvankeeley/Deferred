@@ -21,7 +21,7 @@ public final class LockProtected<T> {
         self.lock = lock
     }
 
-    public func withReadLock<U>(block: T -> U) -> U {
+    public func withReadLock<U>(block: (T) -> U) -> U {
         return lock.withReadLock { [unowned self] in
             return block(self.item)
         }
