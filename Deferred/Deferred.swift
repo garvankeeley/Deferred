@@ -45,11 +45,11 @@ public class Deferred<T> {
         }
     }
 
-    public func fill(value: T) {
+    public func fill(_ value: T) {
         _fill(value: value, assertIfFilled: true)
     }
 
-    public func fillIfUnfilled(value: T) {
+    public func fillIfUnfilled(_ value: T) {
         _fill(value: value, assertIfFilled: false)
     }
 
@@ -57,7 +57,7 @@ public class Deferred<T> {
         return protected.withReadLock { $0.protectedValue }
     }
 
-    public func uponQueue(queue: DispatchQueue, block: @escaping (T) -> ()) {
+    public func uponQueue(_ queue: DispatchQueue, block: @escaping (T) -> ()) {
         let maybeValue: T? = protected.withWriteLock{ data in
             if data.protectedValue == nil {
                 data.uponBlocks.append( (queue, block) )
@@ -88,42 +88,42 @@ extension Deferred {
 }
 
 extension Deferred {
-    public func bindQueue<U>(queue: DispatchQueue, f: @escaping (T) -> Deferred<U>) -> Deferred<U> {
+    public func bindQueue<U>(_ queue: DispatchQueue, f: @escaping (T) -> Deferred<U>) -> Deferred<U> {
         let d = Deferred<U>()
-        self.uponQueue(queue: queue) {
-            f($0).uponQueue(queue: queue) {
-                d.fill(value: $0)
+        self.uponQueue(queue) {
+            f($0).uponQueue(queue) {
+                d.fill($0)
             }
         }
         return d
     }
 
-    public func mapQueue<U>(queue: DispatchQueue, f: @escaping (T) -> U) -> Deferred<U> {
-        return bindQueue(queue: queue) { t in Deferred<U>(value: f(t)) }
+    public func mapQueue<U>(_ queue: DispatchQueue, f: @escaping (T) -> U) -> Deferred<U> {
+        return bindQueue(queue) { t in Deferred<U>(value: f(t)) }
     }
 }
 
 extension Deferred {
-    public func upon(block: @escaping (T) ->()) {
-        uponQueue(queue: defaultQueue, block: block)
+    public func upon(_ block: @escaping (T) ->()) {
+        uponQueue(defaultQueue, block: block)
     }
 
-    public func bind<U>(f: @escaping (T) -> Deferred<U>) -> Deferred<U> {
-        return bindQueue(queue: defaultQueue, f: f)
+    public func bind<U>(_ f: @escaping (T) -> Deferred<U>) -> Deferred<U> {
+        return bindQueue(defaultQueue, f: f)
     }
 
-    public func map<U>(f: @escaping (T) -> U) -> Deferred<U> {
-        return mapQueue(queue: defaultQueue, f: f)
+    public func map<U>(_ f: @escaping (T) -> U) -> Deferred<U> {
+        return mapQueue(defaultQueue, f: f)
     }
 }
 
 extension Deferred {
-    public func both<U>(other: Deferred<U>) -> Deferred<(T,U)> {
+    public func both<U>(_ other: Deferred<U>) -> Deferred<(T,U)> {
         return self.bind { t in other.map { u in (t, u) } }
     }
 }
 
-public func all<T>(deferreds: [Deferred<T>]) -> Deferred<[T]> {
+public func all<T>(_ deferreds: [Deferred<T>]) -> Deferred<[T]> {
     if deferreds.count == 0 {
         return Deferred(value: [])
     }
@@ -136,20 +136,20 @@ public func all<T>(deferreds: [Deferred<T>]) -> Deferred<[T]> {
     block = { t in
         results.append(t)
         if results.count == deferreds.count {
-            combined.fill(value: results)
+            combined.fill(results)
         } else {
-            deferreds[results.count].upon(block: block)
+            deferreds[results.count].upon(block)
         }
     }
-    deferreds[0].upon(block: block)
+    deferreds[0].upon(block)
 
     return combined
 }
 
-public func any<T>(deferreds: [Deferred<T>]) -> Deferred<Deferred<T>> {
+public func any<T>(_ deferreds: [Deferred<T>]) -> Deferred<Deferred<T>> {
     let combined = Deferred<Deferred<T>>()
     for d in deferreds {
-        d.upon { _ in combined.fillIfUnfilled(value: d) }
+        d.upon { _ in combined.fillIfUnfilled(d) }
     }
     return combined
 }
